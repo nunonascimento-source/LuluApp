@@ -50,90 +50,114 @@ class _MeasurementsListPageState extends State<MeasurementsListPage> {
           }
 
           final measurements = snapshot.data!;
+
+          // Group by date (Y-M-D)
+          final Map<DateTime, List<Measurement>> grouped = {};
+          for (final m in measurements) {
+            final key = DateTime(m.date.year, m.date.month, m.date.day);
+            grouped.putIfAbsent(key, () => []).add(m);
+          }
+
+          // Sort dates ascending (older first)
+          final dates = grouped.keys.toList()..sort((a, b) => a.compareTo(b));
+
           return ListView.builder(
-            itemCount: measurements.length,
+            itemCount: dates.length,
             itemBuilder: (context, index) {
-              final m = measurements[index];
-              final hasId = m.id != null;
+              final date = dates[index];
+              final items = grouped[date]!;
+              // Sort items by time ascending
+              items.sort((a, b) => a.time.compareTo(b.time));
+
               return Card(
                 margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: ListTile(
+                child: ExpansionTile(
                   title: Text(
-                    'Glicemia: ${m.glicemia} mg/dL',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
+                    _formatDate(date),
+                    style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: 4),
-                      Text('Insulina: ${m.insulina.toStringAsFixed(2)} UI'),
-                      Text('Data: ${_formatDate(m.date)}'),
-                      Text('Hora: ${m.time}'),
-                      if (m.observations != null && m.observations!.isNotEmpty)
-                        Text('Observações: ${m.observations}'),
-                    ],
-                  ),
-                  isThreeLine: true,
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.edit),
-                        tooltip: 'Editar',
-                        onPressed: hasId
-                            ? () async {
-                                final updated = await Navigator.push<bool?>(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) =>
-                                        MeasurementForm(initialMeasurement: m),
-                                  ),
-                                );
-                                if (updated == true) {
-                                  _reload();
-                                }
-                              }
-                            : null,
+                  children: items.map((m) {
+                    final hasId = m.id != null;
+                    return ListTile(
+                      title: Text(
+                        'Glicemia: ${m.glicemia} mg/dL',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 16,
+                        ),
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.delete),
-                        tooltip: 'Apagar',
-                        onPressed: hasId
-                            ? () async {
-                                final confirmed = await showDialog<bool>(
-                                  context: context,
-                                  builder: (ctx) => AlertDialog(
-                                    title: const Text('Apagar medição'),
-                                    content: const Text(
-                                      'Tem certeza de que deseja apagar esta medição?',
-                                    ),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () =>
-                                            Navigator.of(ctx).pop(false),
-                                        child: const Text('Cancelar'),
-                                      ),
-                                      TextButton(
-                                        onPressed: () =>
-                                            Navigator.of(ctx).pop(true),
-                                        child: const Text('Apagar'),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                                if (confirmed == true) {
-                                  await DatabaseHelper.instance
-                                      .deleteMeasurement(m.id!);
-                                  _reload();
-                                }
-                              }
-                            : null,
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(height: 4),
+                          Text('Insulina: ${m.insulina.toStringAsFixed(2)} UI'),
+                          Text('Hora: ${m.time}'),
+                          if (m.observations != null &&
+                              m.observations!.isNotEmpty)
+                            Text('Observações: ${m.observations}'),
+                        ],
                       ),
-                    ],
-                  ),
+                      isThreeLine: true,
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.edit),
+                            tooltip: 'Editar',
+                            onPressed: hasId
+                                ? () async {
+                                    final updated = await Navigator.push<bool?>(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => MeasurementForm(
+                                          initialMeasurement: m,
+                                        ),
+                                      ),
+                                    );
+                                    if (updated == true) {
+                                      _reload();
+                                    }
+                                  }
+                                : null,
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.delete),
+                            tooltip: 'Apagar',
+                            onPressed: hasId
+                                ? () async {
+                                    final confirmed = await showDialog<bool>(
+                                      context: context,
+                                      builder: (ctx) => AlertDialog(
+                                        title: const Text('Apagar medição'),
+                                        content: const Text(
+                                          'Tem certeza de que deseja apagar esta medição?',
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.of(ctx).pop(false),
+                                            child: const Text('Cancelar'),
+                                          ),
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.of(ctx).pop(true),
+                                            child: const Text('Apagar'),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                    if (confirmed == true) {
+                                      await DatabaseHelper.instance
+                                          .deleteMeasurement(m.id!);
+                                      _reload();
+                                    }
+                                  }
+                                : null,
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
                 ),
               );
             },

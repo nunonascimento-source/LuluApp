@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'measurement_form.dart';
 import 'measurements_list.dart';
 import 'db/database_helper.dart';
+import 'utils/exit_app.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -167,9 +169,17 @@ class _MyHomePageState extends State<MyHomePage> {
             const SizedBox(height: 40),
             // Exit button
             ElevatedButton.icon(
-              onPressed: () {
-                // Close the app (works in mobile, on web closes the tab)
-                Navigator.of(context).popUntil((route) => route.isFirst);
+              onPressed: () async {
+                await exitApp();
+                if (kIsWeb) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'No navegador, feche o separador para sair.',
+                      ),
+                    ),
+                  );
+                }
               },
               icon: const Icon(Icons.exit_to_app),
               label: const Text('Sair'),
